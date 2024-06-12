@@ -74,18 +74,18 @@ void SysClkConf_72MHz(void) {
     RCC->CFGR |= RCC_CFGR_ADCPRE_DIV6; // ADC prescale 6.
     RCC->CFGR |= RCC_CFGR_PPRE1_DIV2; //APB1 prescale 2.
 
-    //3. choose new clock source.
+    //chon nguon hse cho pll
     RCC->CFGR |= RCC_CFGR_PLLSRC; // PLLSRC HSE
 
-    //4. enable PLL
+    //bat pll
     RCC->CR |= RCC_CR_PLLON;
     while((RCC->CR & RCC_CR_PLLRDY) == 0); // wait PLLRDY.
 
-    //5. switch sysclk to PLL
+    //doi sysclock sang pll
     RCC->CFGR |= RCC_CFGR_SW_PLL;
     while((RCC->CFGR & RCC_CFGR_SWS) == 0); //wait SWS.
 
-    //6. turn off original source
+    //tat hsi
     RCC->CR &= ~(RCC_CR_HSION); // off HSION
     while((RCC->CR & RCC_CR_HSIRDY) == RCC_CR_HSIRDY);
 }
@@ -102,9 +102,14 @@ void delayUs(uint32_t us){
 	}
 }
 void delayMs(uint32_t ms){
-    for(uint32_t i = 0; i < ms; i++) {
-        delayUs(1000); // Delay 1ms b?ng cách g?i hàm delayUs
-    }
+		uint32_t i;
+		for(i=0;i<ms;i++){
+			SysTick->LOAD = 9000-1;
+			SysTick->VAL = 0;
+			SysTick->CTRL |= SysTick_CTRL_ENABLE;
+			while(!(SysTick->CTRL & SysTick_CTRL_COUNTFLAG));
+			SysTick->CTRL &= ~SysTick_CTRL_ENABLE;
+	}
 }
 //ham vao che do ngu
 void enter_sleep_mode(void) {
@@ -273,7 +278,7 @@ void lcd_send_cmd(char cmd){
     char data_u = cmd & 0xF0;
     char data_l = (cmd << 4) & 0xF0;
     uint8_t data_t[4] = {
-        data_u | 0x0C, data_u | 0x08,
+        data_u | 0x0C, data_u | 0x08, //0x0C Rs = 0 E = 1, 0x08 Rs = 0 E = 0
         data_l | 0x0C, data_l | 0x08
     };
     LCD_Write(LCD_ADDR, data_t, 4);
@@ -282,7 +287,7 @@ void lcd_send_data(char data){
     char data_u = data & 0xF0;
     char data_l = (data << 4) & 0xF0;
     uint8_t data_t[4] = {
-        data_u | 0x0D, data_u | 0x09,
+        data_u | 0x0D, data_u | 0x09,//0x0D Rs = 1 E = 1, 0x09 Rs = 1 E = 0
         data_l | 0x0D, data_l | 0x09
     };
     LCD_Write(LCD_ADDR, data_t, 4);
@@ -423,7 +428,8 @@ int main(void) {
     while (1) {
         if (!system_on) {
 						lcd_clear();
-						delayMs(50);
+						lcd_set_cursor(0,4);
+						lcd_send_string("tat");	
             EXTI->IMR &= ~EXTI_IMR_MR0; // tat ngat EXTI0 
             enter_sleep_mode();
 						SysClkConf_72MHz();//cau hinh lai tan so he thong 
