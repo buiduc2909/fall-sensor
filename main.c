@@ -7,14 +7,9 @@
 #define MPU6050_ADDR 0xD0 //0x68<<1 
 
 // dia chi cua i2c ket noi lcd
-#define LCD_ADDR 0x27 // Ðia chi I2C cua LCD 
+#define LCD_ADDR 0x27 // Ãia chi I2C cua LCD 
 
-// cac tham so dung cho tao tre
-#define SYSTICK_LOAD (SystemCoreClock/1000000U)
-#define SYSTICK_DELAY_CALIB (SYSTICK_LOAD >> 1)
-
-//
-// cac thanh ghi cua MPU6050
+// dia chi cac thanh ghi cua MPU6050
 #define MPU6050_PWR_MGMT_1 0x6B
 #define MPU6050_SMPLRT_DIV 0x19
 #define MPU6050_CONFIG 0x1A
@@ -33,11 +28,13 @@
 //gia tri gia toc theo 3 phuong
 volatile float a_x, a_y, a_z;
 
+
 //*******//
 
 volatile float Threshold = (1.58*9.81); // NGUONG PHAT HIEN NGA
 
 //*******//
+
 
 //bien trang thai cua he thong
 volatile uint8_t system_on = 1;
@@ -65,14 +62,15 @@ void lcd_clear(void);
 void EXTI_Config(void);
 void delayUs(uint32_t us);
 void delayMs(uint32_t ms);
+
 //ham cau hinh xung he thong
 void SysClkConf_72MHz(void) {
-    //1. Turn on HSE to use.
-    RCC->CR |= RCC_CR_HSEON; // HSE on
-    while((RCC->CR & RCC_CR_HSERDY) == 0); // wait HSERDY.
+    //su dung hse
+    RCC->CR |= RCC_CR_HSEON;
+    while((RCC->CR & RCC_CR_HSERDY) == 0); // doi san sang
 
-    //2. config PLL (HSE, MUL9).
-    RCC->CFGR |= RCC_CFGR_PLLMULL9; // PLLMUL9 -> systemclock = 72MHz
+    //cau hinh PLL 
+    RCC->CFGR |= RCC_CFGR_PLLMULL9; // *9 = systemclock = 72MHz
     RCC->CFGR |= RCC_CFGR_ADCPRE_DIV6; // ADC prescale 6.
     RCC->CFGR |= RCC_CFGR_PPRE1_DIV2; //APB1 prescale 2.
 
@@ -105,7 +103,7 @@ void delayUs(uint32_t us){
 }
 void delayMs(uint32_t ms){
     for(uint32_t i = 0; i < ms; i++) {
-        delayUs(1000); // Delay 1ms b?ng cách g?i hàm delayUs
+        delayUs(1000); // Delay 1ms b?ng cÃ¡ch g?i hÃ m delayUs
     }
 }
 //ham vao che do ngu
@@ -148,11 +146,11 @@ void I2C_Init(void) {
     RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
 
 		// cau hinh PB6 va PB7 cho I2C1 (scl va sda)
-    // output mode speed 2Mhz, push - pull
+    // pull up
     GPIOB->CRL &= ~(GPIO_CRL_MODE6 | GPIO_CRL_MODE7);
     GPIOB->CRL |= GPIO_CRL_MODE6_1 | GPIO_CRL_MODE7_1;
     GPIOB->CRL |= GPIO_CRL_CNF6_1 | GPIO_CRL_CNF7_1;
-		GPIOB->ODR |= ((1<<6 | 1<<7));  // Pull up scl va sda 
+		GPIOB->ODR |= ((1<<6 | 1<<7));  
 		
     // reset I2C1
     I2C1->CR1 |= I2C_CR1_SWRST;
@@ -229,14 +227,14 @@ uint8_t MPU_ReadReg(uint8_t reg) {
 void MPU6050_Init(void) {
     MPU_WriteReg(MPU6050_PWR_MGMT_1, 0x00); // wake up MPU6050
     MPU_WriteReg(MPU6050_CONFIG, 0x00); // tat FSYNC, dai 260Hz
-    MPU_WriteReg(MPU6050_ACCEL_CONFIG, 0x00); // dai cua cam bien gia toc ±2g
+    MPU_WriteReg(MPU6050_ACCEL_CONFIG, 0x00); // dai cua cam bien gia toc Â±2g
     MPU_WriteReg(MPU6050_INT_ENABLE, 0x01); // bat ngat thong bao khi du lieu san sang
     MPU_WriteReg(MPU6050_INT_PIN_CFG, 0x10); // xoa cac bit int status khi doc
 }
 
 //ham doc du lieu tu mpu (du lieu tho)
 void MPU6050_ReadAccelRaw(int16_t* ax, int16_t* ay, int16_t* az) {
-    // du lieu gia toc duoc luu tai 2 thanh ghi high và low dai 8 bit
+    // du lieu gia toc duoc luu tai 2 thanh ghi high vÃ  low dai 8 bit
     *ax = ((int16_t)MPU_ReadReg(MPU6050_ACCEL_XOUT_H) << 8) | MPU_ReadReg(MPU6050_ACCEL_XOUT_L);
     *ay = ((int16_t)MPU_ReadReg(MPU6050_ACCEL_YOUT_H) << 8) | MPU_ReadReg(MPU6050_ACCEL_YOUT_L);
     *az = ((int16_t)MPU_ReadReg(MPU6050_ACCEL_ZOUT_H) << 8) | MPU_ReadReg(MPU6050_ACCEL_ZOUT_L);
@@ -294,56 +292,60 @@ void lcd_send_string(char *str){
 			lcd_send_data(*str++);
 		}
 }
-// Hàm kh?i t?o LCD
+// HÃ m kh?i t?o LCD
 void lcd_init(void) {
 		delayMs(50);
-    lcd_send_cmd(0x30);
+    lcd_send_cmd(0x30);//bat nguon
     delayMs(5);
     lcd_send_cmd(0x30);
     delayUs(150);
     lcd_send_cmd(0x30);
     delayMs(10);
-    lcd_send_cmd(0x20);
+	
+    lcd_send_cmd(0x20);//doi sang 4 bit	
 
-    lcd_send_cmd(0x28);
+    lcd_send_cmd(0x28);//2 line, 5x8 font
     delayMs(1);
-    lcd_send_cmd(0x08);
+    lcd_send_cmd(0x08);//tat hien thi, xoa cursor, tat blink
     delayMs(1);
-    lcd_send_cmd(0x01);
+    lcd_send_cmd(0x01);//clear man
     delayMs(1);
-    lcd_send_cmd(0x06);
+    lcd_send_cmd(0x06);//cursor tang dan
     delayMs(1);
-    lcd_send_cmd(0x0C);
+    lcd_send_cmd(0x0C);//bat hien thi
 }
-// Hàm d? thi?t l?p v? trí con tr? trên LCD
+// Ham thiet lap vi tri con tro
 void lcd_set_cursor(uint8_t row, uint8_t col) {
 		uint8_t addr = (row == 0) ? 0x80 + col : 0xC0 + col;
     lcd_send_cmd(addr);
 }
 
 void lcd_clear(void) {
-    lcd_send_cmd(0x01);  // Send clear display command
-    delayMs(2);  // Wait for command to execute
+    lcd_send_cmd(0x01);  // xoa man hinh
+    delayMs(2);  // doi lenh thuc hien
 }
 
 void EXTI_Config(void) {
-    // cap xung cho afio và gpioa de su dung lam ngat cong tac
+    // cap xung cho afio vÃ  gpioa de su dung lam ngat cong tac
     RCC->APB2ENR |= RCC_APB2ENR_AFIOEN;
     RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;
-    // input floating cho interrupt tu mpu6050 
+		
+    // pull up cho interrupt tu mpu6050 
     GPIOA->CRL &= ~(GPIO_CRL_MODE0 | GPIO_CRL_CNF0);
     GPIOA->CRL |= GPIO_CRL_CNF0_1;
     GPIOA->ODR |= 1<<0;
 
-    // pullup / pulldown input cho cong tac tat mo he thong
+    // pullup cho cong tac tat mo he thong
     GPIOA->CRL &= ~(GPIO_CRL_MODE1 | GPIO_CRL_CNF1);
     GPIOA->CRL |= GPIO_CRL_CNF1_1;
 		GPIOA->ODR |= 1<<1;
 		
-    // cau hình afio và exti
+    // cau hÃ¬nh afio vÃ  exti
     AFIO->EXTICR[0] |= AFIO_EXTICR1_EXTI0_PA | AFIO_EXTICR1_EXTI1_PA; // bat 2 chan pa0 va pa1 voi nhiem vu ngat ngoai
     EXTI->PR |= EXTI_PR_PR0 | EXTI_PR_PR1; // xoa pending 
-    EXTI->FTSR |= EXTI_FTSR_TR0 | EXTI_FTSR_TR1; // chon suon xuong
+    
+		//chon suon xuong
+		EXTI->FTSR |= EXTI_FTSR_TR0 | EXTI_FTSR_TR1;
 
     // xoa suon len    
     EXTI->RTSR &= ~(EXTI_RTSR_TR0);
@@ -354,9 +356,11 @@ void EXTI_Config(void) {
     EXTI->EMR &= ~(EXTI_EMR_MR0);
     EXTI->EMR &= ~(EXTI_EMR_MR1);
 
-    // set muc do uu tien
+    // dat muc do uu tien
+		// ngat cua mpu6050
     NVIC_SetPriority(EXTI0_IRQn, 1);
     NVIC_EnableIRQ(EXTI0_IRQn);
+		//ngat cua nut tat bat he thong
     NVIC_SetPriority(EXTI1_IRQn, 0);
     NVIC_EnableIRQ(EXTI1_IRQn);
 }
@@ -367,20 +371,19 @@ void EXTI1_IRQHandler(void) {
         system_on = !system_on; // dao nguoc che do
     }
 }
-void lcd_Writedata(void){
-		char buffer[8];
-		sprintf(buffer, "%.2f", a_x);
-		lcd_set_cursor(0,0);
-		lcd_send_string(buffer);	
-		delayMs(50);
-		sprintf(buffer, "%.2f", a_y);
-		lcd_set_cursor(0, 6);
-		lcd_send_string(buffer);
-		delayMs(50);
-		sprintf(buffer, "%.2f", a_z);		
-		lcd_set_cursor(1, 0);
-		lcd_send_string(buffer);
-		delayMs(50);
+void lcd_Writedata(int a){
+		if(a==1){
+			lcd_clear();
+			lcd_set_cursor(1,4);
+			lcd_send_string("nga");	
+			delayMs(50);
+		}
+		else if(a==0){
+			lcd_clear();
+			lcd_set_cursor(1,4);
+			lcd_send_string("binh thuong");	
+			delayMs(50);
+		}
 }
 void EXTI0_IRQHandler(void) {
 		
@@ -388,19 +391,19 @@ void EXTI0_IRQHandler(void) {
         EXTI->PR |= EXTI_PR_PR0;
         if (system_on) {
             MPU6050_ReadAccel(&a_x, &a_y, &a_z);
-            if (checkFall(a_x, a_y, a_z, Threshold)) {
+            if (checkFall(a_x, a_y, a_z, Threshold)) {						
+		lcd_Writedata(1);
                 GPIOC->ODR ^= (1 << 13);
-								delayMs(100);
+		delayMs(100);
             } else {
+		lcd_Writedata(0);
                 GPIOC->BSRR |= (1 << 13); // tat den
             }
-						lcd_Writedata();
         }
     }
 }
-
 void LED_Init(void) {
-		//led pc13 general output push pull
+	//led pc13 
     RCC->APB2ENR |= RCC_APB2ENR_IOPCEN;
     GPIOC->CRH &= ~(GPIO_CRH_CNF13 | GPIO_CRH_MODE13);
     GPIOC->CRH |= GPIO_CRH_MODE13;
@@ -413,12 +416,17 @@ int main(void) {
     I2C_Init();
     MPU6050_Init();
     EXTI_Config();
-    lcd_init(); // Khoi tao LCD
+    lcd_init();
+		lcd_set_cursor(0,4);
+		lcd_send_string("bat");	
+		delayMs(50);
     while (1) {
         if (!system_on) {
+						lcd_clear();
+						delayMs(50);
             EXTI->IMR &= ~EXTI_IMR_MR0; // tat ngat EXTI0 
             enter_sleep_mode();
-						SysClkConf_72MHz();
+						SysClkConf_72MHz();//cau hinh lai tan so he thong 
             EXTI->IMR |= EXTI_IMR_MR0; // bat lai ngat EXTI0 
         } else{
         }
